@@ -213,7 +213,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             switch (msg.what) {
                 case CMD_HANDLE_PIN_MMI:
                     request = (MainThreadRequest) msg.obj;
-                    request.result = mPhone.handlePinMmi((String) request.argument);
+                    request.result = getPhoneFromRequest(request).handlePinMmi(
+                            (String) request.argument);
                     // Wake up the requesting thread
                     synchronized (request) {
                         request.notifyAll();
@@ -244,13 +245,13 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
 
                 case CMD_ANSWER_RINGING_CALL:
                     request = (MainThreadRequest) msg.obj;
-                    int answer_subId = ((Integer)request.argument).intValue();
+                    int answer_subId = request.subId;
                     answerRingingCallInternal(answer_subId);
                     break;
 
                 case CMD_END_CALL:
                     request = (MainThreadRequest) msg.obj;
-                    int end_subId = ((Integer)request.argument).intValue();
+                    int end_subId = request.subId;
                     final boolean hungUp;
                     int phoneType = getPhone(end_subId).getPhoneType();
                     if (phoneType == PhoneConstants.PHONE_TYPE_CDMA) {
@@ -645,8 +646,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     request = (MainThreadRequest) msg.obj;
                     onCompleted = obtainMessage(EVENT_SET_VOICEMAIL_NUMBER_DONE, request);
                     Pair<String, String> tagNum = (Pair<String, String>) request.argument;
-                    Phone phone = (request.subId == null) ? mPhone : getPhone(request.subId);
-                    phone.setVoiceMailNumber(tagNum.first, tagNum.second, onCompleted);
+                    getPhoneFromRequest(request).setVoiceMailNumber(tagNum.first, tagNum.second,
+                            onCompleted);
                     break;
 
                 case EVENT_SET_VOICEMAIL_NUMBER_DONE:
@@ -767,6 +768,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         if (DBG) log("publish: " + this);
 
         ServiceManager.addService("phone", this);
+    }
+
+    private Phone getPhoneFromRequest(MainThreadRequest request) {
+        return (request.subId == null) ? mPhone : getPhone(request.subId);
     }
 
     // returns phone associated with the subId.
@@ -914,7 +919,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      */
     public boolean endCallForSubscriber(int subId) {
         enforceCallPermission();
-        return (Boolean) sendRequest(CMD_END_CALL, new Integer(subId), null);
+        return (Boolean) sendRequest(CMD_END_CALL, null, new Integer(subId));
     }
 
     public void answerRingingCall() {
@@ -927,7 +932,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         // but that can probably wait till the big TelephonyManager API overhaul.
         // For now, protect this call with the MODIFY_PHONE_STATE permission.
         enforceModifyPermission();
-        sendRequest(CMD_ANSWER_RINGING_CALL, new Integer(subId), null);
+        sendRequest(CMD_ANSWER_RINGING_CALL, null, new Integer(subId));
     }
 
     /**
