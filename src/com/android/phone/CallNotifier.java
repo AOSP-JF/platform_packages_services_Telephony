@@ -32,7 +32,6 @@ import com.android.internal.telephony.cdma.CdmaInformationRecords.CdmaDisplayInf
 import com.android.internal.telephony.cdma.CdmaInformationRecords.CdmaSignalInfoRec;
 import com.android.internal.telephony.cdma.SignalToneUtil;
 import com.android.internal.telephony.gsm.SuppServiceNotification;
-import com.android.internal.telephony.util.BlacklistUtils;
 
 import android.app.ActivityManagerNative;
 import android.bluetooth.BluetoothAdapter;
@@ -237,11 +236,6 @@ public class CallNotifier extends Handler {
                 onUnknownConnectionAppeared((AsyncResult) msg.obj);
                 break;
 
-            case CallStateMonitor.INTERNAL_PHONE_MWI_CHANGED:
-                Phone phone = (Phone)msg.obj;
-                onMwiChanged(mApplication.phone.getMessageWaitingIndicator(), phone);
-                break;
-
             case CallStateMonitor.PHONE_STATE_DISPLAYINFO:
                 if (DBG) log("Received PHONE_STATE_DISPLAYINFO event");
                 onDisplayInfo((AsyncResult) msg.obj);
@@ -308,7 +302,6 @@ public class CallNotifier extends Handler {
             @Override
             public void onMessageWaitingIndicatorChanged(boolean mwi) {
                 Phone phone = PhoneUtils.getPhoneFromSubId(mSubId);
-                onMwiChanged(mwi, phone);
             }
 
             @Override
@@ -805,33 +798,6 @@ public class CallNotifier extends Handler {
         PhoneUtils.setAudioMode(mCM);
     }
 
-    private void onMwiChanged(boolean visible, Phone phone) {
-        if (VDBG) log("onMwiChanged(): " + visible + " phoneId = " + phone.getPhoneId());
-
-        // "Voicemail" is meaningless on non-voice-capable devices,
-        // so ignore MWI events.
-        if (!PhoneGlobals.sVoiceCapable) {
-            // ...but still log a warning, since we shouldn't have gotten this
-            // event in the first place!
-            // (PhoneStateListener.LISTEN_MESSAGE_WAITING_INDICATOR events
-            // *should* be blocked at the telephony layer on non-voice-capable
-            // capable devices.)
-            Log.w(LOG_TAG, "Got onMwiChanged() on non-voice-capable device! Ignoring...");
-            return;
-        }
-
-        boolean notifProp = mApplication.getResources().getBoolean(R.bool.sprint_mwi_quirk);
-        boolean notifOption = Settings.System.getInt(mApplication.getContentResolver(),
-                Settings.System.ENABLE_MWI_NOTIFICATION, 0) == 1;
-        if (notifProp && !notifOption) {
-            // sprint_mwi_quirk is true, and ENABLE_MWI_NOTIFICATION is unchecked or unset (false)
-            // ignore the mwi event, but log if we're debugging.
-            if (VDBG) log("onMwiChanged(): mwi_notification is disabled. Ignoring...");
-            return;
-        }
-
-        mApplication.notificationMgr.updateMwi(visible, phone);
-    }
 
     /**
      * Posts a delayed PHONE_MWI_CHANGED event, to schedule a "retry" for a
@@ -846,7 +812,7 @@ public class CallNotifier extends Handler {
         if (VDBG) log("onCfiChanged(): " + visible);
         mApplication.notificationMgr.updateCfi(visible, phone);
     }
-
+    
     /**
      * Helper class to play tones through the earpiece (or speaker / BT)
      * during a call, using the ToneGenerator.

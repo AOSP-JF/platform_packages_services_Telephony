@@ -56,7 +56,6 @@ import com.android.internal.telephony.SubscriptionController;
 import com.android.internal.telephony.PhoneProxy;
 import com.android.internal.telephony.TelephonyCapabilities;
 import com.android.internal.telephony.TelephonyIntents;
-import com.android.internal.telephony.util.BlacklistUtils;
 import com.android.phone.common.CallLogAsync;
 import com.android.server.sip.SipService;
 

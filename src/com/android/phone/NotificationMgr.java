@@ -53,7 +53,6 @@ import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.PhoneBase;
 import com.android.internal.telephony.TelephonyCapabilities;
-import com.android.internal.telephony.util.BlacklistUtils;
 
 import java.util.List;
 
@@ -143,37 +142,6 @@ public class NotificationMgr {
             return sInstance;
         }
     }
-
-    /**
-     * Configures a notification to emit the blinky notification light.
-     *
-     */
-    private static void configureLedNotification(Context context, Notification notification) {
-        ContentResolver resolver = context.getContentResolver();
-
-        boolean lightEnabled = Settings.System.getInt(resolver,
-                Settings.System.NOTIFICATION_LIGHT_PULSE, 0) == 1;
-        if (!lightEnabled) {
-            return;
-        }
-
-        notification.flags |= Notification.FLAG_SHOW_LIGHTS;
-
-        // Get Voice mail values if they are to be used
-        boolean customEnabled = Settings.System.getInt(resolver,
-                Settings.System.NOTIFICATION_LIGHT_PULSE_CUSTOM_ENABLE, 0) == 1;
-        if (!customEnabled) {
-            notification.defaults |= Notification.DEFAULT_LIGHTS;
-            return;
-        }
-
-        notification.ledARGB = Settings.System.getInt(resolver,
-            Settings.System.NOTIFICATION_LIGHT_PULSE_VMAIL_COLOR, DEFAULT_COLOR);
-        notification.ledOnMS = Settings.System.getInt(resolver,
-            Settings.System.NOTIFICATION_LIGHT_PULSE_VMAIL_LED_ON, DEFAULT_TIME);
-        notification.ledOffMS = Settings.System.getInt(resolver,
-            Settings.System.NOTIFICATION_LIGHT_PULSE_VMAIL_LED_OFF, DEFAULT_TIME);
-     }
 
     /**
      * Helper class that's a wrapper around the framework's
@@ -408,7 +376,6 @@ public class NotificationMgr {
                 if (!mUserManager.hasUserRestriction(
                         UserManager.DISALLOW_OUTGOING_CALLS, userHandle)
                             && !user.isManagedProfile()) {
-                    configureLedNotification(mContext, notification);
                     mNotificationManager.notifyAsUser(
                             null /* tag */, notificationId, notification, userHandle);
                 }

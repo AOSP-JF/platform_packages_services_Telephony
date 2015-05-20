@@ -89,39 +89,6 @@ public class NetworkSettingDataManager {
         }
     };
 
-    public void updateDataState(boolean enable, Message msg) {
-        if (!enable) {
-            if (mTelephonyManager.getDataState() == TelephonyManager.DATA_CONNECTED) {
-                log(" Data is in CONNECTED state");
-                mMsg = msg;
-                ConfirmDialogListener listener = new ConfirmDialogListener(msg);
-                AlertDialog d = new AlertDialog.Builder(mContext)
-                        .setTitle(android.R.string.dialog_alert_title)
-                        .setIcon(android.R.drawable.ic_dialog_alert)
-                        .setMessage(R.string.disconnect_data_confirm)
-                        .setPositiveButton(android.R.string.ok, listener)
-                        .setNegativeButton(android.R.string.no, listener)
-                        .setOnCancelListener(listener)
-                        .create();
-
-                d.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-                d.show();
-            } else {
-                msg.arg1 = 1;
-                msg.sendToTarget();
-            }
-        } else {
-            if (mNetworkSearchDataDisabled || mNetworkSearchDataDisconnecting) {
-                //enable data service
-                mTelephonyManager.setDataEnabledUsingSubId( SubscriptionManager
-                        .getDefaultDataSubId(), true);
-                mContext.unregisterReceiver(mReceiver);
-                mNetworkSearchDataDisabled = false;
-                mNetworkSearchDataDisconnecting = false;
-            }
-        }
-    }
-
     private final class ConfirmDialogListener
             implements DialogInterface.OnClickListener, DialogInterface.OnCancelListener {
 
@@ -139,8 +106,6 @@ public class NetworkSettingDataManager {
                         TelephonyIntents.ACTION_ANY_DATA_CONNECTION_STATE_CHANGED);
                 mContext.registerReceiver(mReceiver, intentFilter);
                 mNetworkSearchDataDisconnecting = true;
-                mTelephonyManager.setDataEnabledUsingSubId(SubscriptionManager
-                        .getDefaultDataSubId(), false);
             } else if (which == DialogInterface.BUTTON_NEGATIVE){
                 log(" network search, do nothing");
                 msg1.arg1 = 0;

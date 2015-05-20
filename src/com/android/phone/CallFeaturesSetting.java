@@ -66,9 +66,7 @@ import com.android.internal.telephony.CallForwardInfo;
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConstants;
-import com.android.internal.telephony.util.BlacklistUtils;
 import com.android.phone.common.util.SettingsUtil;
-import com.android.phone.msim.MSimCallFeaturesSubSetting;
 import com.android.phone.settings.AccountSelectionPreference;
 import com.android.services.telephony.sip.SipUtil;
 
@@ -251,8 +249,6 @@ public class CallFeaturesSetting extends PreferenceActivity
     private static final String VOICEMAIL_VIBRATION_ALWAYS = "always";
     private static final String VOICEMAIL_VIBRATION_NEVER = "never";
 
-    // Blacklist support
-    private static final String BUTTON_BLACKLIST = "button_blacklist";
     private PreferenceScreen mIPPrefixPreference;
     private PreferenceScreen mButtonVideoCallFallback;
     private PreferenceScreen mButtonVideoCallForward;
@@ -279,7 +275,6 @@ public class CallFeaturesSetting extends PreferenceActivity
     private ListPreference mButtonDTMF;
     private ListPreference mButtonTTY;
     private Preference mPhoneAccountSettingsPreference;
-    private SwitchPreference mMwiNotification;
     private ListPreference mVoicemailProviders;
     private PreferenceScreen mVoicemailSettingsScreen;
     private PreferenceScreen mVoicemailSettings;
@@ -496,10 +491,6 @@ public class CallFeaturesSetting extends PreferenceActivity
     @Override
     public boolean onPreferenceTreeClick(PreferenceScreen preferenceScreen, Preference preference) {
         if (preference == mSubMenuVoicemailSettings) {
-            return true;
-        } else if (preference == mMwiNotification) {
-            Settings.System.putInt(getContentResolver(), Settings.System.ENABLE_MWI_NOTIFICATION,
-                    mMwiNotification.isChecked() ? 1 : 0);
             return true;
         } else if (preference == mButtonDTMF) {
             return true;
@@ -1632,39 +1623,11 @@ public class CallFeaturesSetting extends PreferenceActivity
         PreferenceScreen preferenceScreen = getPreferenceScreen();
         if (preferenceScreen != null) {
             preferenceScreen.removeAll();
-        }
 
-        boolean isMsim = PhoneUtils.isMultiSimEnabled();
-        if (DBG) log("onResume(). isMSim = " + isMsim);
-        if (isMsim) {
-            addPreferencesFromResource(R.xml.call_feature_setting_msim);
-
-            PreferenceCategory simCategory = (PreferenceCategory) findPreference(SIM_CATEGORY_KEY);
-            int numPhones = TelephonyManager.getDefault().getPhoneCount();
-            SubscriptionManager subscriptionManager = SubscriptionManager.from(this);
-
-            for (int i = 0; i < numPhones; i++) {
-                SubscriptionInfo sir =
-                        subscriptionManager.getActiveSubscriptionInfoForSimSlotIndex(i);
-                Preference pref = new Preference(this);
-
-                pref.setTitle(getString(R.string.sim_card_title, i + 1));
-                if (sir != null) {
-                    pref.setSummary(sir.getDisplayName());
-
-                    Intent intent = new Intent(this, MSimCallFeaturesSubSetting.class);
-                    SubscriptionManager.putPhoneIdAndSubIdExtra(intent, i, sir.getSubscriptionId());
-                    pref.setIntent(intent);
-
-                    simCategory.addPreference(pref);
-                } else {
-                    pref.setSummary(R.string.sim_card_summary_empty);
-                    pref.setEnabled(false);
-                }
-            }
-        } else {
-            addPreferencesFromResource(R.xml.call_feature_setting);
-        }
+        } 
+           
+        addPreferencesFromResource(R.xml.call_feature_setting);
+        
         if (isVTSupported()) {
             addPreferencesFromResource(R.xml.video_call_settings);
         }
@@ -1688,18 +1651,6 @@ public class CallFeaturesSetting extends PreferenceActivity
             mVideoCallPreference = findPreference(BUTTON_VIDEO_CALL_SWITCH);
             if (mVideoCallPreference != null) {
                 prefSet.removePreference(mVideoCallPreference);
-            }
-        }
-
-        mMwiNotification = (SwitchPreference) findPreference(BUTTON_MWI_NOTIFICATION_KEY);
-        if (mMwiNotification != null) {
-            if (getResources().getBoolean(R.bool.sprint_mwi_quirk)) {
-                mMwiNotification.setOnPreferenceChangeListener(this);
-            } else {
-                PreferenceScreen voicemailCategory =
-                        (PreferenceScreen) findPreference(BUTTON_VOICEMAIL_CATEGORY_KEY);
-                voicemailCategory.removePreference(mMwiNotification);
-                mMwiNotification = null;
             }
         }
 
@@ -1781,7 +1732,7 @@ public class CallFeaturesSetting extends PreferenceActivity
             }
         }
 
-        if (!isWorldPhone && !isMsim) {
+        if (!isWorldPhone) {
             Preference options = prefSet.findPreference(BUTTON_CDMA_OPTIONS);
             if (options != null) {
                 prefSet.removePreference(options);
@@ -1840,15 +1791,6 @@ public class CallFeaturesSetting extends PreferenceActivity
         updateVoiceNumberField();
         mVMProviderSettingsForced = false;
 
-        // Blacklist screen - Needed for setting summary
-        mButtonBlacklist = (PreferenceScreen) prefSet.findPreference(BUTTON_BLACKLIST);
-
-        if (mMwiNotification != null) {
-            int mwiNotification = Settings.System.getInt(getContentResolver(),
-                    Settings.System.ENABLE_MWI_NOTIFICATION, 0);
-            mMwiNotification.setChecked(mwiNotification != 0);
-        }
-
         if (mButtonDTMF != null) {
             int dtmf = Settings.System.getInt(getContentResolver(),
                     Settings.System.DTMF_TONE_TYPE_WHEN_DIALING, Constants.DTMF_TONE_TYPE_NORMAL);
@@ -1894,17 +1836,6 @@ public class CallFeaturesSetting extends PreferenceActivity
 
         // Look up the voicemail ringtone name asynchronously and update its preference.
         new Thread(mVoicemailRingtoneLookupRunnable).start();
-        updateBlacklistSummary();
-    }
-
-    private void updateBlacklistSummary() {
-        if (mButtonBlacklist != null) {
-            if (BlacklistUtils.isBlacklistEnabled(this)) {
-                mButtonBlacklist.setSummary(R.string.blacklist_summary);
-            } else {
-                mButtonBlacklist.setSummary(R.string.blacklist_summary_disabled);
-            }
-        }
     }
 
     // Migrate settings from BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_WHEN_KEY to

@@ -172,13 +172,7 @@ public class NetworkSetting extends PreferenceActivity
             if (DBG) log("connection created, binding local service.");
             mNetworkQueryService = ((NetworkQueryService.LocalBinder) service).getService();
             // as soon as it is bound, run a query.
-            if (isDataDisableRequired()) {
-                mSearchButton.setEnabled(false);
-                Message onCompleteMsg = mHandler.obtainMessage(EVENT_NETWORK_DATA_MANAGER_DONE);
-                mDataManager.updateDataState(false, onCompleteMsg);
-            } else {
-                loadNetworksList();
-            }
+            loadNetworksList();
         }
 
         /** Handle the task of cleaning up the local binding */
@@ -208,13 +202,7 @@ public class NetworkSetting extends PreferenceActivity
         boolean handled = false;
 
         if (preference == mSearchButton) {
-            if (isDataDisableRequired()) {
-                mSearchButton.setEnabled(false);
-                Message onCompleteMsg = mHandler.obtainMessage(EVENT_NETWORK_DATA_MANAGER_DONE);
-                mDataManager.updateDataState(false, onCompleteMsg);
-            } else {
-                loadNetworksList();
-            }
+            loadNetworksList();
             handled = true;
         } else if (preference == mAutoSelect) {
             selectNetworkAutomatic();
@@ -244,14 +232,7 @@ public class NetworkSetting extends PreferenceActivity
         } catch (RemoteException e) {
             throw new RuntimeException(e);
         }
-
-        if (!mIsForeground) {
-            finish();
-        } else {
-            getPreferenceScreen().setEnabled(true);
-            clearList();
-            displayEmptyNetworkList(true);
-        }
+        finish();
     }
 
     public String getNormalizedCarrierName(OperatorInfo ni) {
@@ -322,9 +303,6 @@ public class NetworkSetting extends PreferenceActivity
         if (!mUnavailable) {
             // unbind the service.
             unbindService(mNetworkQueryServiceConnection);
-        }
-        if (mDataManager != null) {
-            mDataManager.updateDataState(true, null);
         }
         super.onDestroy();
     }
@@ -435,8 +413,6 @@ public class NetworkSetting extends PreferenceActivity
 
         // delegate query request to the service.
         try {
-            // Avoid registering callback twice by unregistering first
-            mNetworkQueryService.stopNetworkQuery(mCallback);
             mNetworkQueryService.startNetworkQuery(mCallback);
         } catch (RemoteException e) {
         }
@@ -468,9 +444,6 @@ public class NetworkSetting extends PreferenceActivity
             // connected after this activity is moved to background.
             if (DBG) log("Fail to dismiss network load list dialog");
         }
-        if (mDataManager != null) {
-            mDataManager.updateDataState(true, null);
-        }
         getPreferenceScreen().setEnabled(true);
         clearList();
 
@@ -482,39 +455,13 @@ public class NetworkSetting extends PreferenceActivity
             if (result != null){
                 displayEmptyNetworkList(false);
 
-                TelephonyManager telephonyManager =
-                        (TelephonyManager)getSystemService(Context.TELEPHONY_SERVICE);
-                String simOperatorName = telephonyManager.getSimOperatorName();
-
-                if (DBG) log("Default sim operator: " + simOperatorName);
-
                 // create a preference for each item in the list.
                 // just use the operator name instead of the mildly
                 // confusing mcc/mnc.
-                int orderPrioMin = mNetworkList.getPreferenceCount();
-                int orderPrioLow = orderPrioMin + 1;
-                int orderPrioHigh = result.size() + 1;
                 for (OperatorInfo ni : result) {
                     Preference carrier = new Preference(this, null);
                     carrier.setTitle(getNetworkTitle(ni));
                     carrier.setPersistent(false);
-                    // arrange home (sim default) carrier to top and show sim icon
-                    // arrange locked operators to bottom and show lock icon
-                    // arrange all others in between, show icon for currently selected network
-                    if (ni.getState() == OperatorInfo.State.FORBIDDEN) {
-                        carrier.setWidgetLayoutResource(R.layout.pref_network_select_lock);
-                        carrier.setOrder(orderPrioHigh);
-                        orderPrioHigh++;
-                    } else if (TextUtils.equals(getNetworkTitle(ni), simOperatorName)) {
-                        carrier.setWidgetLayoutResource(R.layout.pref_network_select_sim);
-                        carrier.setOrder(orderPrioMin);
-                    } else {
-                        if (ni.getState() == OperatorInfo.State.CURRENT) {
-                            carrier.setWidgetLayoutResource(R.layout.pref_network_select_current);
-                        }
-                        carrier.setOrder(orderPrioLow);
-                        orderPrioLow++;
-                    }
                     mNetworkList.addPreference(carrier);
                     mNetworkMap.put(carrier, ni);
 
