@@ -67,7 +67,6 @@ import com.android.internal.util.HexDump;
 
 import static com.android.internal.telephony.PhoneConstants.SUBSCRIPTION_KEY;
 import com.android.internal.telephony.RILConstants;
-import com.google.i18n.phonenumbers.PhoneNumberUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
